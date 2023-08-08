@@ -1,0 +1,153 @@
+//Create the rating interface.
+add_action( 'comment_form_logged_in_after', 'sp_comment_rating_rating_field' );
+add_action( 'comment_form_after_fields', 'sp_comment_rating_rating_field' );
+function sp_comment_rating_rating_field () {
+		if( is_singular( array( 'post', 'promo' ) ) ){
+	?>
+	<label for="rating">Rating<span class="required">*</span></label>
+	<fieldset class="comments-rating">
+		<span class="rating-container">
+			<?php for ( $i = 5; $i >= 1; $i-- ) : ?>
+				<input type="radio" id="rating-<?php echo esc_attr( $i ); ?>" name="rating" value="<?php echo esc_attr( $i ); ?>" /><label for="rating-<?php echo esc_attr( $i ); ?>"><?php echo esc_html( $i ); ?></label>
+			<?php endfor; ?>
+			<input type="radio" id="rating-0" class="star-cb-clear" name="rating" value="0" /><label for="rating-0">0</label>
+		</span>
+	</fieldset>
+	<?php
+	}
+}
+
+//Save the rating submitted by the user.
+add_action( 'comment_post', 'sp_comment_rating_save_comment_rating' );
+function sp_comment_rating_save_comment_rating( $comment_id ) {
+	if ( ( isset( $_POST['rating'] ) ) && ( '' !== $_POST['rating'] ) )
+	$rating = intval( $_POST['rating'] );
+	add_comment_meta( $comment_id, 'rating', $rating );
+}
+
+//Make the rating required.
+add_filter( 'preprocess_comment', 'sp_comment_rating_require_rating' );
+function sp_comment_rating_require_rating( $commentdata ) {
+	if ( is_singular( array( 'post', 'promo' ) ) && ! is_admin() && ( ! isset( $_POST['rating'] ) || 0 === intval( $_POST['rating'] ) ) )
+	wp_die( __( 'Error: You did not add a rating. Hit the Back button on your Web browser and resubmit your comment with a rating.' ) );
+	return $commentdata;
+}
+
+//Display the rating on a submitted comment.
+add_filter( 'comment_text', 'sp_comment_rating_display_rating');
+function sp_comment_rating_display_rating( $comment_text ){
+	$rating = get_comment_meta( get_comment_ID(), 'rating', true );
+	if ( $rating && is_singular( array( 'post', 'promo' ) ) ) {
+		$stars = '<p class="stars">';
+		for ( $i = 1; $i <= $rating; $i++ ) {
+			$stars .= '<span class="dashicons dashicons-star-filled"></span>';
+		}
+		$stars .= '</p>';
+		$comment_text = $comment_text . $stars;
+		return $comment_text;
+	} else {
+		return $comment_text;
+	}
+}
+
+//Get the average rating of a post.
+function sp_comment_rating_get_average_ratings( $id ) {
+	$comments = get_approved_comments( $id );
+
+	if ( $comments ) {
+		$i = 0;
+		$total = 0;
+		foreach( $comments as $comment ){
+			$rate = get_comment_meta( $comment->comment_ID, 'rating', true );
+			if( isset( $rate ) && '' !== $rate ) {
+				$i++;
+				$total += $rate;
+			}
+		}
+
+		if ( 0 === $i ) {
+			return false;
+		} else {
+			return round( $total / $i, 1 );
+		}
+	} else {
+		return false;
+	}
+}
+if( is_singular( array( 'post', 'promo' ) ) ){
+			echo '<style>
+			.comments-rating {
+				border: none;
+				padding: 0;
+				margin-left: 0;
+			}		
+			.comments-rating label {
+				display: inline-block;
+			}		
+			.rating-container {
+				/* remove inline-block whitespace */
+				font-size: 0;
+				/* flip the order so we can use the + and ~ combinators */
+				unicode-bidi: bidi-override;
+				direction: rtl;
+			}		
+			.rating-container * {
+				font-size: 1.4rem;
+			}		
+			.rating-container > input {
+				display: none;
+			}		
+			.rating-container > input + label {
+				/* only enough room for the star */
+				font-family: "dashicons";
+				display: inline-block;
+				overflow: hidden;
+				text-indent: 9999px;
+				width: 1em;
+				white-space: nowrap;
+				cursor: pointer;
+				margin: 0;
+			}		
+			.rating-container > input + label:before {
+				display: inline-block;
+				text-indent: -9999px;
+				content: "\f154";
+				color: #888;
+			}		
+			.rating-container > input:checked ~ label:before,
+			.rating-container > input + label:hover ~ label:before,
+			.rating-container > input + label:hover:before {
+				content: "\f155";
+				color: #e52;
+				text-shadow: 0 0 1px #333;
+			}		
+			.rating-container > .star-cb-clear + label {
+				text-indent: -9999px;
+				width: .5em;
+				margin-left: -.5em;
+			}		
+			.rating-container > .star-cb-clear + label:before {
+				width: .5em;
+			}		
+			.rating-container:hover > input + label:before {
+				content: "\f154";
+				color: #888;
+				text-shadow: none;
+			}		
+			.rating-container:hover > input + label:hover ~ label:before,
+			.rating-container:hover > input + label:hover:before {
+				content: "\f155";
+				color: #e52;
+				text-shadow: 0 0 1px #333;
+			}		
+			.comment-respond .rating-container > .star-cb-clear + label, .comment-respond .rating-container > input + label:before {
+				text-indent: 9999px;
+			}		
+			.comment-respond .rating-container > input + label {
+				text-indent: -9999px;
+			}
+			.comment-content p.stars {
+				color: #f9b917;
+			}
+			</style>';
+		}
